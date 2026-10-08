@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0b0f">
+<title>Novel Translations</title>
+<style>
+:root{--bg:#08080b;--card:#111116;--card2:#0d0d11;--line:#25252e;--text:#f5f5f7;--muted:#92929d;--accent:#9b6cff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#171224 0,#08080b 45%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}.wrap{max-width:920px;margin:auto;padding:22px 15px 50px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.brand{font-size:25px;font-weight:800;letter-spacing:-.7px}.brand span{color:var(--accent)}.pill{font-size:11px;color:#c9c3d8;border:1px solid var(--line);padding:7px 10px;border-radius:99px}
+.card{background:rgba(17,17,22,.94);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 16px 45px rgba(0,0,0,.2)}.label{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:10px}
+textarea{width:100%;min-height:210px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:13px;padding:15px;resize:vertical;outline:0;font-size:16px;line-height:1.65}textarea:focus{border-color:#6f4cb6}
+.actions{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap}button{border:0;border-radius:10px;padding:11px 16px;font-weight:750;cursor:pointer}.primary{background:var(--accent);color:white}.secondary{background:#24242c;color:#ddd}.primary:disabled{opacity:.6;cursor:wait}
+.output{white-space:pre-wrap;line-height:1.8;font-size:16px;color:#e7e7eb;min-height:45px}.empty{color:#666}.copy{float:right;padding:7px 10px;font-size:12px;background:#202028;color:#ddd}
+.dictionary{display:grid;gap:8px}.term{display:flex;gap:10px;align-items:flex-start;background:var(--card2);border:1px solid #202027;border-radius:10px;padding:10px 12px}.term b{color:#c7b1ff;min-width:125px}.status{font-size:12px;color:var(--muted);margin-top:9px}.error{color:#ff9c9c}
+footer{text-align:center;color:#555;font-size:11px;margin-top:22px}
+@media(max-width:600px){.brand{font-size:21px}.card{padding:15px}textarea{min-height:190px}.term{display:block}.term b{display:block;margin-bottom:3px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><div class="brand">Novel <span>Translations</span></div><div class="pill">Jai-style Hinglish</div></header>
+
+<section class="card">
+<div class="label">English novel text</div>
+<textarea id="input" maxlength="12000" placeholder="Paste the sentence or paragraph you don't understand..."></textarea>
+<div class="actions">
+<button class="primary" id="translate" onclick="translateText()">Translate</button>
+<button class="secondary" onclick="clearAll()">Clear</button>
+</div>
+<div class="status" id="status">Natural translation • Short dictionary • No unnecessary explanation</div>
+</section>
+
+<section class="card">
+<div class="label">Hinglish translation <button class="copy" onclick="copyTranslation()">Copy</button></div>
+<div id="translation" class="output empty">Your translation will appear here.</div>
+</section>
+
+<section class="card">
+<div class="label">Mini dictionary</div>
+<div id="dictionary" class="dictionary"><div class="empty">Difficult words and phrases will appear here.</div></div>
+</section>
+
+<footer>Novel Translations • Private API key stays on the server</footer>
+</div>
+
+<script>
+async function translateText(){
+ const input=document.getElementById('input').value.trim(), btn=document.getElementById('translate');
+ const out=document.getElementById('translation'), dict=document.getElementById('dictionary'), status=document.getElementById('status');
+ if(!input){status.textContent="Paste some English text first.";status.className="status error";return}
+ btn.disabled=true;btn.textContent="Translating...";status.className="status";status.textContent="GPT is translating...";
+ out.textContent="";out.className="output";
+ dict.innerHTML="";
+ try{
+   const r=await fetch("/api/translate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:input})});
+   const d=await r.json();
+   if(!r.ok) throw new Error(d.error||"Translation failed");
+   out.textContent=d.translation||"No translation returned.";
+   if(!d.dictionary?.length){dict.innerHTML='<div class="empty">No difficult words found.</div>'}
+   else d.dictionary.forEach(x=>{
+     const row=document.createElement("div");row.className="term";
+     const b=document.createElement("b");b.textContent=x.term;
+     const s=document.createElement("span");s.textContent=x.meaning;
+     row.append(b,s);dict.appendChild(row);
+   });
+   status.textContent="Done ✓";status.className="status";
+ }catch(e){out.textContent="";out.className="output empty";status.textContent=e.message;status.className="status error"}
+ finally{btn.disabled=false;btn.textContent="Translate"}
+}
+async function copyTranslation(){
+ const t=document.getElementById('translation').textContent;
+ if(!t || t==="Your translation will appear here.") return;
+ await navigator.clipboard.writeText(t);
+ document.getElementById('status').textContent="Translation copied ✓";
+}
+function clearAll(){
+ document.getElementById('input').value="";
+ document.getElementById('translation').textContent="Your translation will appear here.";
+ document.getElementById('translation').className="output empty";
+ document.getElementById('dictionary').innerHTML='<div class="empty">Difficult words and phrases will appear here.</div>';
+ document.getElementById('status').textContent="Natural translation • Short dictionary • No unnecessary explanation";
+ document.getElementById('status').className="status";
+}
+document.getElementById('input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")translateText()});
+</script>
+</body>
+</html>
